@@ -1,0 +1,15 @@
+version: "3"
+
+tasks:
+  unit:
+    desc: "Запускает юнит-тесты для всех модулей"
+    cmds:
+      - |
+        ERR=0
+        for mod in {{.MODULES}}; do
+          if [ -d "$mod" ]; then
+            echo "🧪 Тестируем модуль $mod"
+            go test ./$mod/... || ERR=1
+          fi
+        done
+        exit $ERR

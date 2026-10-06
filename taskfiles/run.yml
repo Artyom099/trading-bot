@@ -1,0 +1,15 @@
+version: "3"
+
+tasks:
+  trader:
+    desc: Запуск trader сервиса
+    dir: trader
+    cmds:
+      - echo "[task] Запуск trader сервиса"
+      - go run cmd/main.go
+
+  mt5-adapter:
+    desc: Запуск Python MT5 адаптера
+    cmds:
+      - echo "[task] Запуск MT5 адаптера"
+      - python3 python/mt5_adapter/app.py

@@ -1,0 +1,116 @@
+# Telegram chat → trader
+#
+# Текстовый контракт входящего сообщения.
+# Это не HTTP/JSON: trader получает message / channel_post из одного чата
+# и декодирует plaintext по правилам ниже.
+#
+# Go-модель: github.com/Artyom099/trading-bot/shared/pkg/telegram/v1
+
+info:
+  title: TelegramSignal
+  version: v1
+  description: Контракт сигнала копи-трейдинга из Telegram-чата в сервис trader
+
+transport:
+  type: telegram_bot_api
+  updates:
+    - message
+    - channel_post
+  chat_id: TELEGRAM_BOT_CHAT_ID
+  ignore_other_chats: true
+
+encoding:
+  type: plaintext
+  one_message_one_signal: true
+  skip:
+    - пустые строки
+    - строки, начинающиеся с "#"
+
+example: |
+  ШОРТ
+
+  GOLD | ЗОЛОТО | XAUUSD
+
+  Зона входа: 4167.55
+
+  Цели:
+  → TP1: 4163.38
+  → TP2: 4159.21
+  → TP3: 4155.05
+
+  Стоп: 4175.89
+
+  #SOFT
+
+message:
+  type: object
+  required:
+    - side
+    - symbol
+    - sl
+  properties:
+    side:
+      type: string
+      description: Направление сделки. Берётся из отдельной строки.
+      enum:
+        - buy
+        - sell
+      aliases:
+        buy:
+          - BUY
+          - LONG
+          - ЛОНГ
+        sell:
+          - SELL
+          - SHORT
+          - ШОРТ
+      example: sell
+    symbol:
+      type: string
+      description: >
+        Тикер MT5. Строка вида "GOLD | ЗОЛОТО | XAUUSD":
+        берётся последний ASCII-тикер (буквы и цифры, длина ≥ 3).
+      minLength: 3
+      example: XAUUSD
+    sl:
+      type: number
+      format: float
+      exclusiveMinimum: 0
+      description: Стоп. Строка "Стоп: <price>". Обязателен.
+      source: '(?i)стоп:\s*<price>'
+      example: 4175.89
+    tp1:
+      type: number
+      format: float
+      exclusiveMinimum: 0
+      description: Первая цель. Строка "TP1: <price>". Необязателен. В ордер MT5 уходит как tp.
+      source: '(?i)tp1:\s*<price>'
+      example: 4163.38
+    tp2:
+      type: number
+      format: float
+      exclusiveMinimum: 0
+      description: Вторая цель. Необязателен. Парсится, в ордер пока не ставится.
+      source: '(?i)tp2:\s*<price>'
+      example: 4159.21
+    tp3:
+      type: number
+      format: float
+      exclusiveMinimum: 0
+      description: Третья цель. Необязателен. Парсится, в ордер пока не ставится.
+      source: '(?i)tp3:\s*<price>'
+      example: 4155.05
+    entry:
+      type: number
+      format: float
+      exclusiveMinimum: 0
+      description: Зона входа. Строка "Зона входа: <price>". Парсится, trader пока не использует.
+      source: '(?i)зона входа:\s*<price>'
+      example: 4167.55
+
+out_of_contract:
+  volume:
+    description: Объём не приходит из Telegram. Задаётся TRADE_VOLUME в trader.
+    default: 0.01
+  hashtags:
+    description: Строки вроде #SOFT не являются полями контракта и игнорируются.
