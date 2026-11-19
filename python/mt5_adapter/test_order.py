@@ -33,6 +33,11 @@ class ParseOrderTest(unittest.TestCase):
         self.assertEqual(got.sl, 0.0)
         self.assertEqual(got.tp, 0.0)
 
+    def test_comment_is_optional(self) -> None:
+        body = {"side": "buy", "symbol": "XAUUSD", "volume": 0.01}
+        self.assertEqual(parse_order(body).comment, "")
+        self.assertEqual(parse_order({**body, "comment": "tp2"}).comment, "tp2")
+
     def test_invalid_side(self) -> None:
         with self.assertRaises(ValueError):
             parse_order({"side": "long", "symbol": "XAUUSD", "volume": 0.01})

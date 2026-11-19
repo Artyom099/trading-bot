@@ -10,7 +10,7 @@ flowchart LR
 ```
 
 ## Quick start
-1. Заполнить `deploy/compose/trader/.env`
+1. Скопировать `deploy/compose/trader/.env.example` в `.env` и заполнить (для адаптера аналогично: `python/mt5_adapter/.env.example`)
 2. `task run:mt5-adapter` — Python-адаптер на Windows с открытым MT5
 3. `task run:trader` — Go-сервис слушает один Telegram-чат и открывает сделки
 

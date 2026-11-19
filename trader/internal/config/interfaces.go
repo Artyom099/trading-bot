@@ -1,5 +1,11 @@
 package config
 
+import (
+	"time"
+
+	"github.com/Artyom099/trading-bot/trader/internal/model"
+)
+
 type LoggerConfig interface {
 	Level() string
 	AsJson() bool
@@ -15,6 +21,13 @@ type MT5Config interface {
 	AdapterURL() string
 }
 
+type KillSwitchConfig interface {
+	MaxConsecutiveErrors() int
+	MaxSignalsPerDay() int
+	StateFile() string
+}
+
 type TradeConfig interface {
-	Volume() float64
+	Volumes() model.TPVolumes
+	MaxSignalAge() time.Duration
 }

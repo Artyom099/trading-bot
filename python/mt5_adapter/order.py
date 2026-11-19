@@ -10,6 +10,7 @@ class Order:
     volume: float
     sl: float
     tp: float
+    comment: str = ""
 
 
 def parse_order(body: dict) -> Order:
@@ -18,8 +19,9 @@ def parse_order(body: dict) -> Order:
     volume = float(body["volume"])
     sl = float(body.get("sl") or 0)
     tp = float(body.get("tp") or 0)
+    comment = str(body.get("comment") or "")
 
     if side not in ("buy", "sell") or volume <= 0:
         raise ValueError("side must be buy/sell and volume > 0")
 
-    return Order(side=side, symbol=symbol, volume=volume, sl=sl, tp=tp)
+    return Order(side=side, symbol=symbol, volume=volume, sl=sl, tp=tp, comment=comment)

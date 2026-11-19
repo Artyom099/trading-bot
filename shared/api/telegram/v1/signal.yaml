@@ -83,21 +83,21 @@ message:
       type: number
       format: float
       exclusiveMinimum: 0
-      description: Первая цель. Строка "TP1: <price>". Необязателен. В ордер MT5 уходит как tp.
+      description: Первая цель. Строка "TP1: <price>". Необязателен. Отдельная сделка с этим tp.
       source: '(?i)tp1:\s*<price>'
       example: 4163.38
     tp2:
       type: number
       format: float
       exclusiveMinimum: 0
-      description: Вторая цель. Необязателен. Парсится, в ордер пока не ставится.
+      description: Вторая цель. Необязателен. Отдельная сделка с этим tp.
       source: '(?i)tp2:\s*<price>'
       example: 4159.21
     tp3:
       type: number
       format: float
       exclusiveMinimum: 0
-      description: Третья цель. Необязателен. Парсится, в ордер пока не ставится.
+      description: Третья цель. Необязателен. Отдельная сделка с этим tp.
       source: '(?i)tp3:\s*<price>'
       example: 4155.05
     entry:
@@ -110,7 +110,8 @@ message:
 
 out_of_contract:
   volume:
-    description: Объём не приходит из Telegram. Задаётся TRADE_VOLUME в trader.
-    default: 0.01
+    description: >
+      Объём не приходит из Telegram. Задаётся в trader отдельно для каждой цели:
+      TRADE_VOLUME_TP1, TRADE_VOLUME_TP2, TRADE_VOLUME_TP3 (0 — не открывать сделку на цель).
   hashtags:
     description: Строки вроде #SOFT не являются полями контракта и игнорируются.

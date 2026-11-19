@@ -103,3 +103,25 @@ func TestOpenOrderHTTPError(t *testing.T) {
 		t.Fatalf("error must contain response body, got %v", err)
 	}
 }
+
+func TestOpenOrderSendsComment(t *testing.T) {
+	var payload map[string]any
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Errorf("invalid json: %v", err)
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(srv.Close)
+
+	err := NewClient(srv.URL).OpenOrder(context.Background(), model.Signal{
+		Side: model.SideBuy, Symbol: "XAUUSD", Volume: 0.02, SL: 1, TP: 2, Comment: "tp2",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if payload["comment"] != "tp2" {
+		t.Fatalf("comment: got %#v, want tp2", payload["comment"])
+	}
+}

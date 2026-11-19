@@ -10,7 +10,7 @@ const (
 )
 
 // Signal — входящее сообщение Telegram по контракту v1.
-// Volume в контракт не входит: его задаёт trader из TRADE_VOLUME.
+// Volume в контракт не входит: его задаёт trader из TRADE_VOLUME_TP1/2/3.
 type Signal struct {
 	Side   Side
 	Symbol string

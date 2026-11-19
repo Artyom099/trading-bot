@@ -11,10 +11,11 @@ import (
 var appConfig *config
 
 type config struct {
-	Logger   LoggerConfig
-	Telegram TelegramConfig
-	MT5      MT5Config
-	Trade    TradeConfig
+	Logger     LoggerConfig
+	Telegram   TelegramConfig
+	MT5        MT5Config
+	Trade      TradeConfig
+	KillSwitch KillSwitchConfig
 }
 
 func Load(path ...string) error {
@@ -43,11 +44,17 @@ func Load(path ...string) error {
 		return err
 	}
 
+	killSwitchCfg, err := env.NewKillSwitchConfig()
+	if err != nil {
+		return err
+	}
+
 	appConfig = &config{
-		Logger:   loggerCfg,
-		Telegram: telegramCfg,
-		MT5:      mt5Cfg,
-		Trade:    tradeCfg,
+		Logger:     loggerCfg,
+		Telegram:   telegramCfg,
+		MT5:        mt5Cfg,
+		Trade:      tradeCfg,
+		KillSwitch: killSwitchCfg,
 	}
 
 	return nil

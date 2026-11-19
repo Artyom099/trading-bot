@@ -22,14 +22,39 @@ trader  --HTTP-->  этот сервис  --MT5 Python API-->  terminal64.exe  -
 `POST /v1/orders`
 
 ```json
-{"side": "sell", "symbol": "XAUUSD", "volume": 0.01, "sl": 4175.89, "tp": 4163.38}
+{
+    "side": "sell", 
+    "symbol": "XAUUSD", 
+    "volume": 0.01, 
+    "sl": 4175.89, 
+    "tp": 4163.38
+}
 ```
 
 - `200` — ордер принят (`mode: live` или `dry-run`)
 - `400` — кривое тело
 - `502` — терминал отклонил заявку
 
-`GET /health` → `{"status": "ok", "live": true/false}`
+`GET /health` →
+
+```json
+{
+    "status": "ok", 
+    "live": true, 
+    "account": {
+        "login": 123, 
+        "server": "Broker-Demo", 
+        "mode": "demo"
+    }, 
+    "allowed_account_mode": "demo"
+}
+```
+
+`account` — `null` в dry-run.
+
+## Защита от неверного счёта
+
+Адаптер сверяет тип счёта в терминале (`demo` / `real`) с `MT5_ALLOWED_ACCOUNT_MODE` перед каждым ордером. По умолчанию `demo`: если в терминале залогинен реальный счёт, ордер отклоняется (`502`, `account mode real ... is not allowed`). Для реальной торговли нужно осознанно задать `MT5_ALLOWED_ACCOUNT_MODE=real`. Если счёт проверить нельзя, ордер тоже отклоняется. В dry-run проверки нет.
 
 ## Live vs dry-run
 
@@ -37,6 +62,16 @@ trader  --HTTP-->  этот сервис  --MT5 Python API-->  terminal64.exe  -
 - **dry-run** — пакет не установлен или терминал не поднялся. Ордер только логируется, в рынок не уходит.
 
 На Mac/Linux адаптер стартует, но всегда в dry-run: официальный Python API — Windows-only.
+
+## Настройки
+
+Читаются из `.env` рядом с `app.py` (шаблон: `.env.example`) и из переменных окружения процесса. Переменные окружения приоритетнее файла. Нет файла — используются значения по умолчанию.
+
+| Переменная | По умолчанию | Назначение |
+|---|---|---|
+| `MT5_ADAPTER_HOST` | `127.0.0.1` | Адрес HTTP-сервера. Для доступа из Mac нужен `0.0.0.0` |
+| `MT5_ADAPTER_PORT` | `8080` | Порт |
+| `MT5_ALLOWED_ACCOUNT_MODE` | `demo` | `demo` / `real` — на какой тип счёта разрешены ордера |
 
 ## Запуск
 

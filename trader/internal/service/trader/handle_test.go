@@ -4,13 +4,17 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
+	"github.com/Artyom099/trading-bot/trader/internal/killswitch"
 	"github.com/Artyom099/trading-bot/trader/internal/model"
 )
 
+var testVolumes = model.TPVolumes{TP1: 0.01, TP2: 0.02, TP3: 0.03}
+
 const (
 	testChatID = int64(872904031)
-	testVolume = 0.01
+	testMaxAge = time.Minute
 	validText  = `ШОРТ
 
 GOLD | ЗОЛОТО | XAUUSD
@@ -27,6 +31,17 @@ GOLD | ЗОЛОТО | XAUUSD
 #SOFT`
 )
 
+func newKillSwitch(t *testing.T, cfg killswitch.Config) *killswitch.Switch {
+	t.Helper()
+
+	ks, err := killswitch.New(cfg)
+	if err != nil {
+		t.Fatalf("killswitch.New: %v", err)
+	}
+
+	return ks
+}
+
 type mt5AdapterStub struct {
 	signals []model.Signal
 	err     error
@@ -39,9 +54,9 @@ func (m *mt5AdapterStub) OpenOrder(_ context.Context, signal model.Signal) error
 
 func TestHandleMessageIgnoresOtherChat(t *testing.T) {
 	adapter := &mt5AdapterStub{}
-	svc := NewService(adapter, testChatID, testVolume)
+	svc := NewService(adapter, testChatID, testVolumes, testMaxAge, newKillSwitch(t, killswitch.Config{}), nil)
 
-	err := svc.HandleMessage(context.Background(), testChatID+1, validText)
+	err := svc.HandleMessage(context.Background(), testChatID+1, validText, time.Now())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -52,9 +67,9 @@ func TestHandleMessageIgnoresOtherChat(t *testing.T) {
 
 func TestHandleMessageSkipsInvalidText(t *testing.T) {
 	adapter := &mt5AdapterStub{}
-	svc := NewService(adapter, testChatID, testVolume)
+	svc := NewService(adapter, testChatID, testVolumes, testMaxAge, newKillSwitch(t, killswitch.Config{}), nil)
 
-	err := svc.HandleMessage(context.Background(), testChatID, "hello")
+	err := svc.HandleMessage(context.Background(), testChatID, "hello", time.Now())
 	if err != nil {
 		t.Fatalf("invalid text must be skipped, got error: %v", err)
 	}
@@ -63,43 +78,128 @@ func TestHandleMessageSkipsInvalidText(t *testing.T) {
 	}
 }
 
-func TestHandleMessageOpensOrder(t *testing.T) {
+func TestHandleMessageOpensTradePerTarget(t *testing.T) {
 	adapter := &mt5AdapterStub{}
-	svc := NewService(adapter, testChatID, testVolume)
+	svc := NewService(adapter, testChatID, testVolumes, testMaxAge, newKillSwitch(t, killswitch.Config{}), nil)
 
-	err := svc.HandleMessage(context.Background(), testChatID, validText)
+	err := svc.HandleMessage(context.Background(), testChatID, validText, time.Now())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	want := model.Signal{
-		Side:   model.SideSell,
-		Symbol: "XAUUSD",
-		Volume: testVolume,
-		Entry:  4167.55,
-		SL:     4175.89,
-		TP:     4163.38,
-		TP2:    4159.21,
-		TP3:    4155.05,
+	base := model.Signal{Side: model.SideSell, Symbol: "XAUUSD", Entry: 4167.55, SL: 4175.89}
+	want := []model.Signal{
+		{Side: base.Side, Symbol: base.Symbol, Entry: base.Entry, SL: base.SL, TP: 4163.38, Volume: 0.01, Comment: "tp1"},
+		{Side: base.Side, Symbol: base.Symbol, Entry: base.Entry, SL: base.SL, TP: 4159.21, Volume: 0.02, Comment: "tp2"},
+		{Side: base.Side, Symbol: base.Symbol, Entry: base.Entry, SL: base.SL, TP: 4155.05, Volume: 0.03, Comment: "tp3"},
 	}
-	if len(adapter.signals) != 1 {
-		t.Fatalf("OpenOrder calls: got %d, want 1", len(adapter.signals))
+	if len(adapter.signals) != len(want) {
+		t.Fatalf("OpenOrder calls: got %d, want %d", len(adapter.signals), len(want))
 	}
-	if adapter.signals[0] != want {
-		t.Fatalf("got %+v, want %+v", adapter.signals[0], want)
+	for i := range want {
+		if adapter.signals[i] != want[i] {
+			t.Fatalf("trade %d: got %+v, want %+v", i, adapter.signals[i], want[i])
+		}
 	}
 }
 
-func TestHandleMessageOpenOrderError(t *testing.T) {
+func TestHandleMessageOnlyPresentTargets(t *testing.T) {
+	adapter := &mt5AdapterStub{}
+	svc := NewService(adapter, testChatID, testVolumes, testMaxAge, newKillSwitch(t, killswitch.Config{}), nil)
+
+	text := "ЛОНГ\nGOLD | XAUUSD\nTP1: 4170.00\nTP3: 4180.00\nСтоп: 4150.00"
+	if err := svc.HandleMessage(context.Background(), testChatID, text, time.Now()); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(adapter.signals) != 2 {
+		t.Fatalf("OpenOrder calls: got %d, want 2", len(adapter.signals))
+	}
+	if got := adapter.signals[0]; got.Comment != "tp1" || got.TP != 4170 || got.Volume != 0.01 {
+		t.Fatalf("first trade: %+v", got)
+	}
+	if got := adapter.signals[1]; got.Comment != "tp3" || got.TP != 4180 || got.Volume != 0.03 {
+		t.Fatalf("second trade: %+v", got)
+	}
+}
+
+func TestHandleMessageNoTargetsOpensNothing(t *testing.T) {
+	adapter := &mt5AdapterStub{}
+	svc := NewService(adapter, testChatID, testVolumes, testMaxAge, newKillSwitch(t, killswitch.Config{}), nil)
+
+	text := "ШОРТ\nGOLD | XAUUSD\nСтоп: 4175.89"
+	if err := svc.HandleMessage(context.Background(), testChatID, text, time.Now()); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(adapter.signals) != 0 {
+		t.Fatalf("OpenOrder must not be called for signal without targets, got %d calls", len(adapter.signals))
+	}
+}
+
+func TestHandleMessageZeroVolumeSkipsTarget(t *testing.T) {
+	adapter := &mt5AdapterStub{}
+	svc := NewService(adapter, testChatID, model.TPVolumes{TP1: 0.01, TP2: 0, TP3: 0.03}, testMaxAge, newKillSwitch(t, killswitch.Config{}), nil)
+
+	if err := svc.HandleMessage(context.Background(), testChatID, validText, time.Now()); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(adapter.signals) != 2 {
+		t.Fatalf("OpenOrder calls: got %d, want 2", len(adapter.signals))
+	}
+	if adapter.signals[0].Comment != "tp1" || adapter.signals[1].Comment != "tp3" {
+		t.Fatalf("got %q and %q, want tp1 and tp3", adapter.signals[0].Comment, adapter.signals[1].Comment)
+	}
+}
+
+func TestHandleMessageAllVolumesZeroOpensNothing(t *testing.T) {
+	adapter := &mt5AdapterStub{}
+	svc := NewService(adapter, testChatID, model.TPVolumes{}, testMaxAge, newKillSwitch(t, killswitch.Config{}), nil)
+
+	if err := svc.HandleMessage(context.Background(), testChatID, validText, time.Now()); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(adapter.signals) != 0 {
+		t.Fatalf("OpenOrder must not be called, got %d calls", len(adapter.signals))
+	}
+}
+
+func TestHandleMessageOpenOrderErrorStillTriesOtherTrades(t *testing.T) {
 	openErr := errors.New("mt5 adapter down")
 	adapter := &mt5AdapterStub{err: openErr}
-	svc := NewService(adapter, testChatID, testVolume)
+	svc := NewService(adapter, testChatID, testVolumes, testMaxAge, newKillSwitch(t, killswitch.Config{}), nil)
 
-	err := svc.HandleMessage(context.Background(), testChatID, validText)
+	err := svc.HandleMessage(context.Background(), testChatID, validText, time.Now())
 	if !errors.Is(err, openErr) {
 		t.Fatalf("got %v, want %v", err, openErr)
 	}
-	if len(adapter.signals) != 1 {
-		t.Fatalf("OpenOrder calls: got %d, want 1", len(adapter.signals))
+	if len(adapter.signals) != 3 {
+		t.Fatalf("a failed trade must not cancel the others: OpenOrder calls: got %d, want 3", len(adapter.signals))
+	}
+}
+
+func TestHandleMessageSkipsStaleMessage(t *testing.T) {
+	adapter := &mt5AdapterStub{}
+	svc := NewService(adapter, testChatID, testVolumes, testMaxAge, newKillSwitch(t, killswitch.Config{}), nil)
+
+	err := svc.HandleMessage(context.Background(), testChatID, validText, time.Now().Add(-2*testMaxAge))
+	if err != nil {
+		t.Fatalf("stale message must be skipped, got error: %v", err)
+	}
+	if len(adapter.signals) != 0 {
+		t.Fatalf("OpenOrder must not be called for stale message, got %d calls", len(adapter.signals))
+	}
+}
+
+func TestHandleMessageAgeFilterDisabled(t *testing.T) {
+	adapter := &mt5AdapterStub{}
+	svc := NewService(adapter, testChatID, testVolumes, 0, newKillSwitch(t, killswitch.Config{}), nil)
+
+	err := svc.HandleMessage(context.Background(), testChatID, validText, time.Now().Add(-24*time.Hour))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(adapter.signals) != 3 {
+		t.Fatalf("OpenOrder calls: got %d, want 3", len(adapter.signals))
 	}
 }

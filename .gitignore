@@ -33,3 +33,11 @@ node_modules/
 .DS_Store
 tmp/
 docs/chat-id.json
+
+# Python
+__pycache__/
+*.pyc
+
+# Состояние стоп-крана trader
+deploy/compose/trader/killswitch.json
+deploy/compose/trader/killswitch.json.tmp

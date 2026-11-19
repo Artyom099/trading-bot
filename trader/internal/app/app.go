@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"time"
 
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
@@ -40,6 +41,7 @@ func (a *App) initDeps(ctx context.Context) error {
 		a.initDI,
 		a.initLogger,
 		a.initCloser,
+		a.initKillSwitch,
 		a.initTelegramBot,
 	}
 
@@ -72,6 +74,19 @@ func (a *App) initCloser(_ context.Context) error {
 	return nil
 }
 
+func (a *App) initKillSwitch(ctx context.Context) error {
+	err := a.diContainer.InitKillSwitch()
+	if err != nil {
+		return err
+	}
+
+	if stopped, reason := a.diContainer.killSwitch.Stopped(); stopped {
+		logger.Warn(ctx, "trading is STOPPED (state restored from file), send /start to resume", zap.String("reason", reason))
+	}
+
+	return nil
+}
+
 func (a *App) initTelegramBot(_ context.Context) error {
 	telegramBot := a.diContainer.TelegramBot()
 
@@ -82,7 +97,7 @@ func (a *App) initTelegramBot(_ context.Context) error {
 	return nil
 }
 
-func (a *App) handleTelegramUpdate(ctx context.Context, _ *bot.Bot, update *models.Update) {
+func (a *App) handleTelegramUpdate(ctx context.Context, b *bot.Bot, update *models.Update) {
 	msg := update.Message
 	if msg == nil {
 		msg = update.ChannelPost
@@ -91,7 +106,21 @@ func (a *App) handleTelegramUpdate(ctx context.Context, _ *bot.Bot, update *mode
 		return
 	}
 
-	err := a.diContainer.TraderService().HandleMessage(ctx, msg.Chat.ID, msg.Text)
+	sentAt := time.Unix(int64(msg.Date), 0)
+
+	// Команды управления (/stop, /start, /status) обрабатываются до разбора сигнала.
+	if reply, handled := a.diContainer.TraderService().HandleCommand(ctx, msg.Chat.ID, msg.Text, sentAt); handled {
+		if reply != "" {
+			_, err := b.SendMessage(ctx, &bot.SendMessageParams{ChatID: msg.Chat.ID, Text: reply})
+			if err != nil {
+				logger.Error(ctx, "failed to send command reply", zap.Error(err))
+			}
+		}
+
+		return
+	}
+
+	err := a.diContainer.TraderService().HandleMessage(ctx, msg.Chat.ID, msg.Text, sentAt)
 	if err != nil {
 		logger.Error(ctx, "failed to handle telegram message", zap.Error(err))
 	}

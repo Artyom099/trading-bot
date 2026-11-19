@@ -10,6 +10,9 @@ import (
 	"strings"
 	"time"
 
+	"go.uber.org/zap"
+
+	"github.com/Artyom099/trading-bot/platform/pkg/logger"
 	"github.com/Artyom099/trading-bot/trader/internal/model"
 )
 
@@ -28,20 +31,22 @@ func NewClient(baseURL string) *client {
 }
 
 type orderRequest struct {
-	Side   string  `json:"side"`
-	Symbol string  `json:"symbol"`
-	Volume float64 `json:"volume"`
-	SL     float64 `json:"sl,omitempty"`
-	TP     float64 `json:"tp,omitempty"`
+	Side    string  `json:"side"`
+	Symbol  string  `json:"symbol"`
+	Volume  float64 `json:"volume"`
+	SL      float64 `json:"sl,omitempty"`
+	TP      float64 `json:"tp,omitempty"`
+	Comment string  `json:"comment,omitempty"`
 }
 
 func (c *client) OpenOrder(ctx context.Context, signal model.Signal) (err error) {
 	payload, err := json.Marshal(orderRequest{
-		Side:   string(signal.Side),
-		Symbol: signal.Symbol,
-		Volume: signal.Volume,
-		SL:     signal.SL,
-		TP:     signal.TP,
+		Side:    string(signal.Side),
+		Symbol:  signal.Symbol,
+		Volume:  signal.Volume,
+		SL:      signal.SL,
+		TP:      signal.TP,
+		Comment: signal.Comment,
 	})
 	if err != nil {
 		return err
@@ -71,6 +76,8 @@ func (c *client) OpenOrder(ctx context.Context, signal model.Signal) (err error)
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("mt5 adapter http %d: %s", resp.StatusCode, body)
 	}
+
+	logger.Info(ctx, "mt5 adapter response", zap.ByteString("body", body))
 
 	return nil
 }

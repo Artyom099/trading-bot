@@ -20,7 +20,15 @@ def new_handler(terminal: Terminal) -> type[BaseHTTPRequestHandler]:
             if self.path != "/health":
                 self._json(404, {"error": "not found"})
                 return
-            self._json(200, {"status": "ok", "live": terminal.live})
+            self._json(
+                200,
+                {
+                    "status": "ok",
+                    "live": terminal.live,
+                    "account": terminal.account(),
+                    "allowed_account_mode": terminal.allowed_account_mode,
+                },
+            )
 
         def do_POST(self) -> None:
             if self.path != "/v1/orders":
@@ -35,7 +43,7 @@ def new_handler(terminal: Terminal) -> type[BaseHTTPRequestHandler]:
                 self._json(400, {"error": f"invalid body: {err}"})
                 return
 
-            result = terminal.send_order(order.side, order.symbol, order.volume, order.sl, order.tp)
+            result = terminal.send_order(order.side, order.symbol, order.volume, order.sl, order.tp, order.comment)
             status = 200 if result.get("ok") else 502
             self._json(status, result)
 
