@@ -1,0 +1,25 @@
+version: "3"
+
+vars:
+  COMPOSE: docker compose -f {{.ROOT_DIR}}/deploy/compose/docker-compose.yml
+
+tasks:
+  build:
+    desc: "Собирает образ trader"
+    cmds:
+      - "{{.COMPOSE}} build"
+
+  up:
+    desc: "Поднимает trader в Docker; MT5-адаптер должен работать на хосте (http://host.docker.internal:8080)"
+    cmds:
+      - "{{.COMPOSE}} up -d --build"
+
+  down:
+    desc: "Останавливает и удаляет контейнер (том с состоянием стоп-крана сохраняется)"
+    cmds:
+      - "{{.COMPOSE}} down"
+
+  logs:
+    desc: "Показывает логи trader"
+    cmds:
+      - "{{.COMPOSE}} logs -f"

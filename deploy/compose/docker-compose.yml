@@ -1,0 +1,39 @@
+name: trading-bot
+
+services:
+  trader: # Go-сервис: слушает Telegram-чат и открывает сделки через MT5-адаптер
+    build:
+      context: ../..
+      dockerfile: deploy/docker/trader/Dockerfile
+    image: trading-bot-trader:local
+    container_name: trader
+
+    # Конфиг тот же, что и при нативном запуске (task run:trader).
+    env_file:
+      - ./trader/.env
+
+    # Значения, которые в контейнере отличаются от нативного запуска. environment приоритетнее env_file.
+    environment:
+      # MT5-адаптер запускается на Windows-хосте рядом с терминалом MT5, не в Docker.
+      MT5_ADAPTER_URL: ${MT5_ADAPTER_URL_DOCKER:-http://host.docker.internal:8080}
+      # Состояние стоп-крана хранится в томе, чтобы /stop переживал пересборку контейнера.
+      KILLSWITCH_STATE_FILE: /data/killswitch.json
+
+    volumes:
+      - trader_data:/data
+
+    # На Docker Desktop (Mac/Windows) host.docker.internal уже есть, на Linux-хосте нужна эта строка.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    restart: unless-stopped
+
+    networks:
+      - trading-net
+
+volumes:
+  trader_data:
+
+networks:
+  trading-net:
+    name: trading-net

@@ -4,6 +4,7 @@ includes:
   lint: ./taskfiles/lint.yml
   test: ./taskfiles/test.yml
   run: ./taskfiles/run.yml
+  docker: ./taskfiles/docker.yml
 
 vars:
   GO_VERSION: "1.27.1"
