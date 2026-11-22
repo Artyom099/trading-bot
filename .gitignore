@@ -33,6 +33,7 @@ node_modules/
 .DS_Store
 tmp/
 docs/chat-id.json
+docs/get-updates.json
 
 # Python
 __pycache__/
