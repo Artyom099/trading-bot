@@ -69,9 +69,9 @@ message:
       type: string
       description: >
         Тикер MT5. Строка вида "GOLD | ЗОЛОТО | XAUUSD":
-        берётся последний ASCII-тикер (буквы и цифры, длина ≥ 3).
+        берётся первый ASCII-тикер слева (буквы и цифры, длина ≥ 3), то есть GOLD.
       minLength: 3
-      example: XAUUSD
+      example: GOLD
     sl:
       type: number
       format: float

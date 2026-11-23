@@ -70,9 +70,9 @@ func parseSide(raw string) (Side, bool) {
 }
 
 func pickSymbol(line string) string {
-	parts := strings.Split(line, "|")
-	for i := len(parts) - 1; i >= 0; i-- {
-		symbol := strings.ToUpper(strings.TrimSpace(parts[i]))
+	// Берём первый ASCII-тикер слева: в "GOLD | ЗОЛОТО | XAUUSD" это GOLD — так символ называется у брокера.
+	for _, part := range strings.Split(line, "|") {
+		symbol := strings.ToUpper(strings.TrimSpace(part))
 		if isTicker(symbol) {
 			return symbol
 		}

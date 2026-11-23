@@ -87,7 +87,7 @@ func TestHandleMessageOpensTradePerTarget(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	base := model.Signal{Side: model.SideSell, Symbol: "XAUUSD", Entry: 4167.55, SL: 4175.89}
+	base := model.Signal{Side: model.SideSell, Symbol: "GOLD", Entry: 4167.55, SL: 4175.89}
 	want := []model.Signal{
 		{Side: base.Side, Symbol: base.Symbol, Entry: base.Entry, SL: base.SL, TP: 4163.38, Volume: 0.01, Comment: "tp1"},
 		{Side: base.Side, Symbol: base.Symbol, Entry: base.Entry, SL: base.SL, TP: 4159.21, Volume: 0.02, Comment: "tp2"},

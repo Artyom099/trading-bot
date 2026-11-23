@@ -28,7 +28,7 @@ func TestDecode(t *testing.T) {
 
 	want := Signal{
 		Side:   SideSell,
-		Symbol: "XAUUSD",
+		Symbol: "GOLD",
 		SL:     4175.89,
 		TP1:    4163.38,
 		TP2:    4159.21,
