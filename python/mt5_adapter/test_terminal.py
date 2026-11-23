@@ -20,6 +20,7 @@ def fake_mt5(
     send_result: object = "ok",
     initialize_ok: bool = True,
 ) -> SimpleNamespace:
+    # Как и в настоящем пакете MetaTrader5, здесь нет SYMBOL_FILLING_FOK/IOC: они только в MQL5.
     sent: list[dict] = []
 
     def order_send(request: dict) -> SimpleNamespace | None:
@@ -29,8 +30,6 @@ def fake_mt5(
         return send_result  # type: ignore[return-value]
 
     return SimpleNamespace(
-        SYMBOL_FILLING_FOK=1,
-        SYMBOL_FILLING_IOC=2,
         ORDER_FILLING_FOK=0,
         ORDER_FILLING_IOC=1,
         ORDER_FILLING_RETURN=2,

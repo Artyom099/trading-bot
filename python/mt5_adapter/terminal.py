@@ -7,15 +7,21 @@ from typing import Any
 log = logging.getLogger("mt5-adapter")
 
 
+# Биты маски `symbol_info().filling_mode`. В Python-пакете MetaTrader5 этих констант нет
+# (они есть только в MQL5), поэтому значения заданы здесь по документации MQL5.
+SYMBOL_FILLING_FOK = 1
+SYMBOL_FILLING_IOC = 2
+
+
 def pick_filling_mode(mt5: Any, symbol_filling_mode: int) -> int:
     """Выбирает режим исполнения, который поддерживает символ у брокера.
 
     `symbol_info().filling_mode` — битовая маска разрешённых режимов (FOK=1, IOC=2).
     Предпочитаем IOC, затем FOK; если ни один не разрешён — RETURN.
     """
-    if symbol_filling_mode & mt5.SYMBOL_FILLING_IOC:
+    if symbol_filling_mode & SYMBOL_FILLING_IOC:
         return mt5.ORDER_FILLING_IOC
-    if symbol_filling_mode & mt5.SYMBOL_FILLING_FOK:
+    if symbol_filling_mode & SYMBOL_FILLING_FOK:
         return mt5.ORDER_FILLING_FOK
     return mt5.ORDER_FILLING_RETURN
 

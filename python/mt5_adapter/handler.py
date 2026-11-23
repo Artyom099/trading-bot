@@ -20,15 +20,19 @@ def new_handler(terminal: Terminal) -> type[BaseHTTPRequestHandler]:
             if self.path != "/health":
                 self._json(404, {"error": "not found"})
                 return
-            self._json(
-                200,
-                {
+            try:
+                payload = {
                     "status": "ok",
                     "live": terminal.live,
                     "account": terminal.account(),
                     "allowed_account_mode": terminal.allowed_account_mode,
-                },
-            )
+                }
+            except Exception as err:  # noqa: BLE001 — любая ошибка терминала должна стать ответом, а не обрывом
+                log.exception("health check failed")
+                self._json(500, {"status": "error", "error": f"internal error: {err}"})
+                return
+
+            self._json(200, payload)
 
         def do_POST(self) -> None:
             if self.path != "/v1/orders":
@@ -43,7 +47,13 @@ def new_handler(terminal: Terminal) -> type[BaseHTTPRequestHandler]:
                 self._json(400, {"error": f"invalid body: {err}"})
                 return
 
-            result = terminal.send_order(order.side, order.symbol, order.volume, order.sl, order.tp, order.comment)
+            try:
+                result = terminal.send_order(order.side, order.symbol, order.volume, order.sl, order.tp, order.comment)
+            except Exception as err:  # noqa: BLE001 — иначе соединение оборвётся без ответа, и trader не узнает причину
+                log.exception("send_order failed")
+                self._json(502, {"ok": False, "error": f"internal error: {err}"})
+                return
+
             status = 200 if result.get("ok") else 502
             self._json(status, result)
 
