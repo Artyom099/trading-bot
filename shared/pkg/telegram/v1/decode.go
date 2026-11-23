@@ -15,12 +15,15 @@ var (
 	slRe    = regexp.MustCompile(`(?i)стоп:\s*([0-9]+(?:\.[0-9]+)?)`)
 )
 
+// tpRe — одиночная цель без номера ("→ TP: 3612.01"), считается первой целью, если нет явного TP1.
+var tpRe = regexp.MustCompile(`(?i)\btp:\s*([0-9]+(?:\.[0-9]+)?)`)
+
 // Decode разбирает plaintext Telegram-сообщение по контракту v1.
 func Decode(text string) (Signal, error) {
 	sig := Signal{
 		Entry: parsePrice(entryRe, text),
 		SL:    parsePrice(slRe, text),
-		TP1:   parsePrice(tp1Re, text),
+		TP1:   parseFirstTarget(text),
 		TP2:   parsePrice(tp2Re, text),
 		TP3:   parsePrice(tp3Re, text),
 	}
@@ -96,6 +99,15 @@ func isTicker(symbol string) bool {
 	}
 
 	return true
+}
+
+// parseFirstTarget возвращает TP1, а если его нет, одиночную цель "TP:" без номера. Явный TP1 приоритетнее.
+func parseFirstTarget(text string) float64 {
+	if price := parsePrice(tp1Re, text); price > 0 {
+		return price
+	}
+
+	return parsePrice(tpRe, text)
 }
 
 func parsePrice(re *regexp.Regexp, text string) float64 {

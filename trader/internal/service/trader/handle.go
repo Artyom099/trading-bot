@@ -38,7 +38,7 @@ func (s *service) HandleMessage(ctx context.Context, chatID int64, text string, 
 
 	trades := s.buildTrades(signal)
 	if len(trades) == 0 {
-		logger.Warn(ctx, "no trades to open: no targets in signal or zero volume for them", zap.String("text", text))
+		logger.Warn(ctx, noTradesMessage(signal), zap.String("text", text))
 		return nil
 	}
 
@@ -91,6 +91,21 @@ func (s *service) HandleMessage(ctx context.Context, chatID int64, text string, 
 	}
 
 	return errors.Join(errs...)
+}
+
+const (
+	msgNoTargets  = "no trades to open: no targets in signal"
+	msgZeroVolume = "no trades to open: zero volume (TRADE_VOLUME_TP*) for all targets in signal"
+)
+
+// noTradesMessage объясняет, почему по разобранному сигналу не открыто ни одной сделки:
+// в нём нет целей или у всех его целей нулевой объём.
+func noTradesMessage(signal model.Signal) string {
+	if signal.TP <= 0 && signal.TP2 <= 0 && signal.TP3 <= 0 {
+		return msgNoTargets
+	}
+
+	return msgZeroVolume
 }
 
 // buildTrades делает по одной сделке на каждую цель сигнала (TP1, TP2, TP3) с её объёмом.

@@ -59,6 +59,59 @@ func TestDecodeLongWithoutOptionalTP(t *testing.T) {
 	}
 }
 
+func TestDecodeSingleTarget(t *testing.T) {
+	text := `ШОРТ
+
+GOLD | ЗОЛОТО | XAUUSD
+
+Зона входа: 3620.16
+
+Цель:
+→ TP: 3612.01
+
+Стоп: 3625.59
+
+#SOFT`
+
+	got, err := Decode(text)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	want := Signal{Side: SideSell, Symbol: "GOLD", SL: 3625.59, TP1: 3612.01, Entry: 3620.16}
+	if got != want {
+		t.Fatalf("got %+v, want %+v", got, want)
+	}
+}
+
+func TestDecodeTargetNumbering(t *testing.T) {
+	tests := []struct {
+		name             string
+		targets          string
+		wantTP1, wantTP2 float64
+		wantTP3          float64
+	}{
+		{name: "explicit TP1 wins over TP", targets: "TP: 1.5\nTP1: 2.5", wantTP1: 2.5},
+		{name: "explicit TP1 wins regardless of order", targets: "TP1: 2.5\nTP: 1.5", wantTP1: 2.5},
+		{name: "TP2 and TP3 without TP1 stay as is", targets: "TP2: 2.5\nTP3: 3.5", wantTP2: 2.5, wantTP3: 3.5},
+		{name: "TP is not taken from TP2", targets: "TP2: 2.5", wantTP2: 2.5},
+		{name: "no targets", targets: "Цель:"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := Decode("ШОРТ\nGOLD | XAUUSD\n" + tt.targets + "\nСтоп: 4175.89")
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got.TP1 != tt.wantTP1 || got.TP2 != tt.wantTP2 || got.TP3 != tt.wantTP3 {
+				t.Fatalf("got TP1=%v TP2=%v TP3=%v, want TP1=%v TP2=%v TP3=%v",
+					got.TP1, got.TP2, got.TP3, tt.wantTP1, tt.wantTP2, tt.wantTP3)
+			}
+		})
+	}
+}
+
 func TestDecodeRequired(t *testing.T) {
 	tests := []struct {
 		name    string

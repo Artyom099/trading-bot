@@ -83,8 +83,10 @@ message:
       type: number
       format: float
       exclusiveMinimum: 0
-      description: Первая цель. Строка "TP1: <price>". Необязателен. Отдельная сделка с этим tp.
-      source: '(?i)tp1:\s*<price>'
+      description: >
+        Первая цель. Строка "TP1: <price>"; если её нет, берётся одиночная цель без номера "TP: <price>"
+        (явный TP1 приоритетнее). Необязателен. Отдельная сделка с этим tp.
+      source: '(?i)tp1:\s*<price>, иначе (?i)\btp:\s*<price>'
       example: 4163.38
     tp2:
       type: number

@@ -123,6 +123,46 @@ func TestHandleMessageOnlyPresentTargets(t *testing.T) {
 	}
 }
 
+func TestHandleMessageSingleTargetOpensOneTrade(t *testing.T) {
+	adapter := &mt5AdapterStub{}
+	svc := NewService(adapter, testChatID, testVolumes, testMaxAge, newKillSwitch(t, killswitch.Config{}), nil)
+
+	text := "ШОРТ\n\nGOLD | ЗОЛОТО | XAUUSD\n\nЗона входа: 3620.16\n\nЦель:\n→ TP: 3612.01\n\nСтоп: 3625.59\n\n#SOFT"
+	if err := svc.HandleMessage(context.Background(), testChatID, text, time.Now()); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(adapter.signals) != 1 {
+		t.Fatalf("OpenOrder calls: got %d, want 1", len(adapter.signals))
+	}
+	want := model.Signal{
+		Side: model.SideSell, Symbol: "GOLD", Entry: 3620.16, SL: 3625.59, TP: 3612.01, Volume: testVolumes.TP1, Comment: "tp1",
+	}
+	if adapter.signals[0] != want {
+		t.Fatalf("trade: got %+v, want %+v", adapter.signals[0], want)
+	}
+}
+
+func TestNoTradesMessage(t *testing.T) {
+	tests := []struct {
+		name   string
+		signal model.Signal
+		want   string
+	}{
+		{name: "no targets", signal: model.Signal{SL: 1}, want: msgNoTargets},
+		{name: "targets exist, volume zero", signal: model.Signal{SL: 1, TP: 2}, want: msgZeroVolume},
+		{name: "only tp3", signal: model.Signal{SL: 1, TP3: 2}, want: msgZeroVolume},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := noTradesMessage(tt.signal); got != tt.want {
+				t.Fatalf("got %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestHandleMessageNoTargetsOpensNothing(t *testing.T) {
 	adapter := &mt5AdapterStub{}
 	svc := NewService(adapter, testChatID, testVolumes, testMaxAge, newKillSwitch(t, killswitch.Config{}), nil)
